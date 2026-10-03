@@ -34,6 +34,17 @@ If `py -3.12` is unavailable, use an installed Python 3.11+ executable to create
 
 To include the optional neural-network example, run `python -m pip install -e ".[lstm]"`. TensorFlow takes longer to install and train; begin with the baselines and Random Forest.
 
+### Run the automated tests
+
+Install the test extra in the same environment, then run the five checks for data validation, leakage, benchmark matching, and metrics:
+
+```powershell
+python -m pip install -e ".[test]"
+python -m pytest -q tests/test_core.py
+```
+
+All five tests should pass. The sample backtest below checks the complete command-line workflow as well. Its data and scores are fictional and must not be presented as results from a real manufacturer.
+
 ## 2. Try the fictional sample
 
 The repository includes `examples/synthetic_demand.csv`. You can regenerate it with:
