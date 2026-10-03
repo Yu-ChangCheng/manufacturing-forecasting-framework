@@ -25,7 +25,11 @@ def _month(value: object) -> pd.Timestamp:
 
 def load_history(path: str | Path) -> pd.DataFrame:
     """Read one complete monthly series per item; never guess missing demand."""
-    df = pd.read_csv(path, dtype={"item_id": "string"})
+    return validate_history(pd.read_csv(path, dtype={"item_id": "string"}))
+
+
+def validate_history(df: pd.DataFrame) -> pd.DataFrame:
+    """Validate an in-memory monthly table for use by the CLI or local app."""
     missing = set(HISTORY_COLUMNS) - set(df.columns)
     if missing:
         raise ValueError(f"History is missing columns: {sorted(missing)}")
@@ -34,8 +38,8 @@ def load_history(path: str | Path) -> pd.DataFrame:
     if not df["month"].eq(df["month"].dt.to_period("M").dt.to_timestamp()).all():
         raise ValueError("month must use the first day of each month (YYYY-MM-01)")
     df["quantity"] = pd.to_numeric(df["quantity"], errors="raise")
-    if df["quantity"].isna().any() or (df["quantity"] < 0).any():
-        raise ValueError("quantity must be a nonnegative number on every row")
+    if df["quantity"].isna().any() or not np.isfinite(df["quantity"].astype(float)).all() or (df["quantity"] < 0).any():
+        raise ValueError("quantity must be a finite, nonnegative number on every row")
     if df["item_id"].isna().any() or df["item_id"].str.strip().eq("").any():
         raise ValueError("item_id must be present on every row")
     if df.duplicated(["item_id", "month"]).any():
@@ -227,12 +231,23 @@ def evaluate(predictions: pd.DataFrame) -> pd.DataFrame:
 
 def add_benchmark(backtested: pd.DataFrame, path: str | Path) -> pd.DataFrame:
     """Compare an independently saved benchmark on exactly matched item/origin/target rows."""
-    benchmark = pd.read_csv(path, dtype={"item_id": "string"})
+    return add_benchmark_frame(backtested, pd.read_csv(path, dtype={"item_id": "string"}))
+
+
+def add_benchmark_frame(backtested: pd.DataFrame, benchmark: pd.DataFrame) -> pd.DataFrame:
+    """In-memory version for a user-supplied CSV in the local app."""
+    benchmark = benchmark.copy()
     keys = ["origin_month", "target_month", "item_id"]
     if set(keys + ["forecast_qty"]) - set(benchmark.columns):
         raise ValueError("Benchmark needs origin_month,target_month,item_id,forecast_qty")
     for col in keys[:2]:
         benchmark[col] = pd.to_datetime(benchmark[col], errors="raise")
+        if not benchmark[col].eq(benchmark[col].dt.to_period("M").dt.to_timestamp()).all():
+            raise ValueError(f"Benchmark {col} must be the first day of a month")
+    benchmark["item_id"] = benchmark["item_id"].astype("string")
+    benchmark["forecast_qty"] = pd.to_numeric(benchmark["forecast_qty"], errors="raise")
+    if benchmark["forecast_qty"].isna().any() or not np.isfinite(benchmark["forecast_qty"].astype(float)).all() or (benchmark["forecast_qty"] < 0).any():
+        raise ValueError("Benchmark forecasts must be finite, nonnegative quantities")
     if benchmark.duplicated(keys).any():
         raise ValueError("Benchmark has duplicate item/origin/target rows")
     benchmark = benchmark[keys + ["forecast_qty"]].copy()

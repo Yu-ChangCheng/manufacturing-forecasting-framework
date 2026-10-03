@@ -96,8 +96,10 @@ def main(argv: list[str] | None = None) -> None:
         ax.plot(actual["target_month"], actual["actual_qty"], marker="o", color="black", label="Actual")
         for model, group in subset.groupby("model"):
             group = group.sort_values("target_month")
-            ax.plot(group["target_month"], group["forecast_qty"], marker=".", label=model)
-        ax.set(title=f"Rolling-origin forecast: {args.item}", xlabel="Target month", ylabel="Quantity")
+            label = {"naive": "Last month", "seasonal_naive": "Same month last year",
+                     "random_forest": "Random Forest", "external_benchmark": "Saved forecast"}.get(model, model)
+            ax.plot(group["target_month"], group["forecast_qty"], marker=".", label=label)
+        ax.set(title=f"Past forecasts for item {args.item}", xlabel="Month forecasted", ylabel="Quantity")
         ax.legend()
         ax.grid(alpha=0.2)
         fig.autofmt_xdate()
@@ -111,4 +113,3 @@ def main(argv: list[str] | None = None) -> None:
 
 if __name__ == "__main__":
     main()
-

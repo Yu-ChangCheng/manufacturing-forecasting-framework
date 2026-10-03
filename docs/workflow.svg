@@ -1,10 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="920" height="190" viewBox="0 0 920 190" role="img" aria-labelledby="title desc">
-  <title id="title">Forecasting workflow</title>
-  <desc id="desc">Monthly data flows through validation, rolling time splits, baseline and model comparison, forecast output, and monitoring.</desc>
-  <style>text{font:16px Arial,sans-serif;fill:#17324d}.box{fill:#eef5fb;stroke:#3572a6;stroke-width:2}.arrow{stroke:#55758d;stroke-width:3;fill:none}</style>
-  <rect width="920" height="190" fill="white"/>
-  <g class="box"><rect x="15" y="55" width="130" height="75" rx="10"/><rect x="168" y="55" width="130" height="75" rx="10"/><rect x="321" y="55" width="130" height="75" rx="10"/><rect x="474" y="55" width="130" height="75" rx="10"/><rect x="627" y="55" width="130" height="75" rx="10"/><rect x="780" y="55" width="125" height="75" rx="10"/></g>
-  <g text-anchor="middle"><text x="80" y="86">Monthly</text><text x="80" y="108">CSV</text><text x="233" y="96">Validate</text><text x="386" y="86">Rolling</text><text x="386" y="108">backtest</text><text x="539" y="86">Compare</text><text x="539" y="108">models</text><text x="692" y="96">Forecast</text><text x="842" y="86">Monitor</text><text x="842" y="108">actuals</text></g>
-  <g class="arrow"><path d="M145 92h21m132 0h21m132 0h21m132 0h21m132 0h21"/></g>
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="270" viewBox="0 0 1040 270" role="img" aria-labelledby="title desc">
+  <title id="title">Five steps to a monthly demand forecast</title>
+  <desc id="desc">Bring a CSV, check dates and missing months, replay forecasts against past actuals, compare simple methods with Random Forest, and download a future forecast.</desc>
+  <style>
+    .title{font:700 25px Arial,sans-serif;fill:#15324a}.number{font:700 17px Arial,sans-serif;fill:#fff}
+    .head{font:700 17px Arial,sans-serif;fill:#15324a}.body{font:14px Arial,sans-serif;fill:#425b6b}
+    .card{fill:#f5f9fc;stroke:#9dc2d7;stroke-width:2}.arrow{stroke:#168e87;stroke-width:4;fill:none;stroke-linecap:round}
+  </style>
+  <rect width="1040" height="270" fill="#fff"/>
+  <text x="30" y="39" class="title">From your data to a forecast you can check</text>
+  <g class="card">
+    <rect x="25" y="75" width="180" height="155" rx="13"/><rect x="228" y="75" width="180" height="155" rx="13"/>
+    <rect x="431" y="75" width="180" height="155" rx="13"/><rect x="634" y="75" width="180" height="155" rx="13"/>
+    <rect x="837" y="75" width="180" height="155" rx="13"/>
+  </g>
+  <g fill="#168e87"><circle cx="53" cy="105" r="17"/><circle cx="256" cy="105" r="17"/><circle cx="459" cy="105" r="17"/><circle cx="662" cy="105" r="17"/><circle cx="865" cy="105" r="17"/></g>
+  <g class="number" text-anchor="middle"><text x="53" y="111">1</text><text x="256" y="111">2</text><text x="459" y="111">3</text><text x="662" y="111">4</text><text x="865" y="111">5</text></g>
+  <g class="head"><text x="40" y="143">Bring a CSV</text><text x="243" y="143">Check the data</text><text x="446" y="143">Replay the past</text><text x="649" y="143">Compare methods</text><text x="852" y="143">Plan ahead</text></g>
+  <g class="body">
+    <text x="40" y="170">Dates, items,</text><text x="40" y="190">and quantities</text>
+    <text x="243" y="170">Map columns; decide</text><text x="243" y="190">what gaps mean</text>
+    <text x="446" y="170">Forecast months</text><text x="446" y="190">already observed</text>
+    <text x="649" y="170">Use hit rate, WAPE,</text><text x="649" y="190">and a chart</text>
+    <text x="852" y="170">Download the next</text><text x="852" y="190">forecast and report</text>
+  </g>
+  <g class="arrow"><path d="M208 153h17m-7-6 7 6-7 6"/><path d="M411 153h17m-7-6 7 6-7 6"/><path d="M614 153h17m-7-6 7 6-7 6"/><path d="M817 153h17m-7-6 7 6-7 6"/></g>
+  <text x="30" y="255" class="body">Past results help compare methods; they do not guarantee future accuracy.</text>
 </svg>
-

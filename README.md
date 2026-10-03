@@ -2,9 +2,29 @@
 
 A small, reproducible framework for monthly item-level demand forecasting. It helps a practitioner answer a basic question: **does a proposed model perform better than a simple forecast when tested on months it could not yet see?**
 
-![Six-step forecasting workflow](docs/workflow.svg)
+![Five-step forecasting workflow](docs/workflow.svg)
 
-The public example uses **fictional, computer-generated data**. It has no employer database connector, private sales records, credentials, or proprietary code. It is an educational starting point, not a ready-made planning system or a claim that machine learning always improves forecasts.
+The repository includes a [reproducible fictional seasonal-demand demo](docs/random-forest-demo.md), an older fictional sample, and a small, attributed sample of public Monash car-parts sales data hosted on Hugging Face. It has no employer database connector, private sales records, credentials, or proprietary code. It is an educational starting point, not a ready-made planning system or a claim that machine learning always improves forecasts.
+
+## Start here: guided local app
+
+This is the easiest path if you do not use Python regularly. The app lets you upload a CSV or Excel `.xlsx` file, choose which columns contain dates, item IDs, and quantities, check missing months, run a backtest, see a chart, and download a forecast and plain-language report. It processes your file on your own computer; the app does not send it to Hugging Face. For Excel, it reads the first sheet.
+
+On Windows, after installing Python 3.11 or newer, you can double-click [`START_APP.bat`](START_APP.bat). It creates a local `.venv`, installs the app's Python packages, and launches the browser. The first run needs an internet connection to install packages. The file contains no credentials or external data upload commands; you can read it before running it.
+
+On Windows PowerShell, from this repository folder:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[app]"
+.\.venv\Scripts\python.exe -m streamlit run streamlit_app.py
+```
+
+Your browser should open the local app. Keep the default **Random Forest teaching example**, then click **Run the backtest and make a future forecast**. Move the backtest slider to 12 origins to reproduce the [demo results](docs/random-forest-demo.md). You can also select **Explore public car-parts example** or **Use my own file**. Press `Ctrl+C` in PowerShell to stop the app. See the [illustrated step-by-step guide](docs/getting-started.md) for sample files, metric explanations, and troubleshooting. If you prefer the command line, use the steps below.
+
+![A backtest uses only earlier observations to predict a later month](docs/backtest-explained.svg)
+
+The fictional demo deliberately has recurring seasonality that Random Forest can learn. In the included 12-origin, one-month-ahead backtest, it reached **66/72 ±25% hits and 10.8% WAPE**, compared with **62/72 and 12.9%** for the same-month-last-year baseline. These are synthetic results, not evidence about an employer. The public car-parts sample has 51 months for five items; its source replaced originally missing values with zeros. It is useful for seeing a harder case where Random Forest does not lead on hit rate. [Data source and attribution](docs/public-data.md).
 
 ## What you get
 
@@ -36,16 +56,28 @@ To include the optional neural-network example, run `python -m pip install -e ".
 
 ### Run the automated tests
 
-Install the test extra in the same environment, then run the five checks for data validation, leakage, benchmark matching, and metrics:
+Install the test extra in the same environment, then check data preparation, leakage, benchmark matching, and metrics:
 
 ```powershell
 python -m pip install -e ".[test]"
-python -m pytest -q tests/test_core.py
+python -m pytest -q tests
 ```
 
-All five tests should pass. The sample backtest below checks the complete command-line workflow as well. Its data and scores are fictional and must not be presented as results from a real manufacturer.
+All tests should pass. The sample backtest below checks the complete command-line workflow as well. Its data and scores are fictional and must not be presented as results from a real manufacturer.
 
-## 2. Try the fictional sample
+## 2. Try the Random Forest teaching sample
+
+The new teaching sample is `examples/synthetic_rf_demo.csv`. It was generated with a fixed seed, six items, a repeated yearly demand pattern, and noise. Run the full 2025 backtest:
+
+```powershell
+python scripts/generate_rf_demo.py
+mfg-forecast backtest --data examples/synthetic_rf_demo.csv --horizon 1 --origins 12
+mfg-forecast plot --predictions outputs/backtest_predictions.csv --item DEMO-04
+```
+
+Read the [explanation, diagram, score table, and chart](docs/random-forest-demo.md). The command creates `outputs/backtest_predictions.csv`, `outputs/backtest_metrics.csv`, and `outputs/backtest_chart.png`. These output files are ignored by Git.
+
+### Older fictional sample
 
 The repository includes `examples/synthetic_demand.csv`. You can regenerate it with:
 
@@ -59,7 +91,7 @@ Run a one-month-ahead backtest at the last six eligible forecast origins:
 mfg-forecast backtest --data examples/synthetic_demand.csv --horizon 1 --origins 6
 ```
 
-The command creates `outputs/backtest_predictions.csv` and `outputs/backtest_metrics.csv` and prints a small metric table. It trains separately at each origin using only demand known by that month, then compares the prediction with the later actual quantity. These output files are ignored by Git.
+The command prints a small metric table. It trains separately at each origin using only demand known by that month, then compares the prediction with the later actual quantity.
 
 Plot one fictional item:
 
@@ -68,6 +100,14 @@ mfg-forecast plot --predictions outputs/backtest_predictions.csv --item SYNTH-00
 ```
 
 Open `outputs/backtest_chart.png`. It shows actual demand and each model's forecasts across the backtest months.
+
+You can also test the public Hugging Face example from the command line:
+
+```powershell
+mfg-forecast backtest --data examples/hf_car_parts_sample.csv --horizon 1 --origins 6
+```
+
+For this selected five-item, six-origin sample, the last-month baseline has a higher ±25% hit rate while Random Forest has lower WAPE. The measures answer different questions; inspect the underlying item-month rows before choosing a method. ![Public car-parts example backtest for one item](docs/hf_car_parts_backtest.png)
 
 ## 3. Use your own monthly CSV locally
 
@@ -129,17 +169,27 @@ The tool reports model scores; **you** must decide whether a difference is meani
 ## Folder guide
 
 ```text
-examples/synthetic_demand.csv   Fictional sample only
+examples/synthetic_rf_demo.csv  Reproducible seasonal-demand teaching sample
+scripts/generate_rf_demo.py     Recipe for that fictional sample
+docs/random-forest-demo.md      Diagram, results, and tutorial links
+examples/synthetic_demand.csv   Older fictional sample
+examples/hf_car_parts_sample.csv  Attributed public teaching sample
+streamlit_app.py                  Guided local CSV app
+START_APP.bat                    Windows double-click launcher
+src/mfg_forecast/prepare.py      Column mapping and explicit gap handling
 src/mfg_forecast/core.py         Validation, models, backtesting, metrics
 src/mfg_forecast/cli.py          Commands and chart
 docs/methodology.md              Evaluation rules and limitations
 docs/workflow.svg                Overview diagram
 tests/test_core.py               Leakage and metric checks
+tests/test_prepare.py            CSV mapping and gap checks
+docs/getting-started.md          Nontechnical walkthrough
+docs/public-data.md              Hugging Face source and license
 ```
 
 ## Data and confidentiality
 
-This project deliberately has no company connection strings or database-writing functions. Keep employer data, customer information, internal schemas, source code, and credentials in approved private systems. If you use a real dataset locally, obtain the necessary authorization and review any generated chart or output before sharing it. The `data/private/` and `outputs/` folders are excluded from Git, but a filename exclusion is not a substitute for checking what you commit.
+This project deliberately has no company connection strings or database-writing functions. Keep employer data, customer information, internal schemas, source code, and credentials in approved private systems. If you use a real dataset locally, obtain the necessary authorization and review any generated chart or output before sharing it. The `data/private/` and `outputs/` folders are excluded from Git, but a filename exclusion is not a substitute for checking what you commit. The guided app is intended to run locally; hosting it on a public server changes who can access uploaded files.
 
 ## License and feedback
 

@@ -18,6 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+app = ["streamlit>=1.40,<2", "openpyxl>=3.1,<4"]
 lstm = ["tensorflow>=2.16,<3"]
 test = ["pytest>=8,<10"]
 
@@ -26,4 +27,3 @@ mfg-forecast = "mfg_forecast.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-

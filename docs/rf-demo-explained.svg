@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1220" height="290" viewBox="0 0 1220 290" role="img" aria-labelledby="title desc">
+  <title id="title">How the Random Forest demand example works</title>
+  <desc id="desc">A fixed repeating monthly pattern and random noise create fictional demand. The forest uses item, target month, and past quantities to predict a later month. Forecasts are compared with actuals on 2025 months.</desc>
+  <rect width="1220" height="290" fill="#f8fafc"/>
+  <text x="35" y="43" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="#14213d">A learnable pattern, tested on later months</text>
+  <g font-family="Arial, sans-serif" font-size="17" fill="#14213d">
+    <rect x="35" y="85" width="235" height="140" rx="14" fill="#dceef8" stroke="#4289b8" stroke-width="2"/>
+    <text x="55" y="117" font-size="19" font-weight="700">Fictional demand</text>
+    <text x="55" y="150">6 items · 8 years</text>
+    <text x="55" y="179">Monthly seasonality</text>
+    <text x="55" y="207">+ random noise</text>
+    <rect x="330" y="85" width="235" height="140" rx="14" fill="#e7e1fb" stroke="#7860ae" stroke-width="2"/>
+    <text x="350" y="117" font-size="19" font-weight="700">Known inputs</text>
+    <text x="350" y="150">Item and target month</text>
+    <text x="350" y="179">Earlier quantities</text>
+    <text x="350" y="207">Lag and mean values</text>
+    <rect x="625" y="85" width="235" height="140" rx="14" fill="#dcf3e4" stroke="#4b9a70" stroke-width="2"/>
+    <text x="645" y="117" font-size="19" font-weight="700">Random Forest</text>
+    <text x="645" y="150">120 decision trees</text>
+    <text x="645" y="179">Combine predictions</text>
+    <text x="645" y="207">for next month</text>
+    <rect x="920" y="85" width="265" height="140" rx="14" fill="#fff0d8" stroke="#ca9143" stroke-width="2"/>
+    <text x="940" y="117" font-size="19" font-weight="700">2025 backtest</text>
+    <text x="940" y="150">Forecast before actual</text>
+    <text x="940" y="179">Compare three methods</text>
+    <text x="940" y="207">on 72 item-months</text>
+  </g>
+  <g stroke="#59687b" stroke-width="3" fill="none">
+    <path d="M280 155h35"/><path d="m307 147 9 8-9 8"/>
+    <path d="M575 155h35"/><path d="m602 147 9 8-9 8"/>
+    <path d="M870 155h35"/><path d="m897 147 9 8-9 8"/>
+  </g>
+  <text x="35" y="267" font-family="Arial, sans-serif" font-size="15" fill="#526174">The forest never receives the actual target quantity when making that forecast.</text>
+</svg>

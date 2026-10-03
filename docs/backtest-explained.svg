@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="280" viewBox="0 0 900 280" role="img" aria-labelledby="title desc">
+  <title id="title">A backtest replays a forecast made at an earlier point in time</title>
+  <desc id="desc">Use January through December actual quantities to predict January. Hide January actual until after the forecast is saved, then reveal it and score the error. Repeat for later origins.</desc>
+  <style>.title{font:700 24px Arial,sans-serif;fill:#15324a}.label{font:700 17px Arial,sans-serif;fill:#15324a}.body{font:15px Arial,sans-serif;fill:#40596b}.box{stroke-width:2;rx:12}.arrow{stroke:#168e87;stroke-width:4;fill:none}</style>
+  <rect width="900" height="280" fill="#fff"/>
+  <text x="25" y="38" class="title">How we test a forecast without peeking ahead</text>
+  <rect x="25" y="70" width="238" height="128" class="box" fill="#eaf4fb" stroke="#5b9dbe"/>
+  <rect x="330" y="70" width="238" height="128" class="box" fill="#e8f7f2" stroke="#4aaf90"/>
+  <rect x="635" y="70" width="238" height="128" class="box" fill="#fff4df" stroke="#daa84b"/>
+  <text x="43" y="102" class="label">1. Use known history</text><text x="43" y="132" class="body">Example: January–December</text><text x="43" y="155" class="body">actual sales are visible.</text>
+  <text x="348" y="102" class="label">2. Save a prediction</text><text x="348" y="132" class="body">Predict the next January</text><text x="348" y="155" class="body">before seeing its actual.</text>
+  <text x="653" y="102" class="label">3. Reveal and score</text><text x="653" y="132" class="body">Compare forecast with actual;</text><text x="653" y="155" class="body">record hit rate and error.</text>
+  <g class="arrow"><path d="M265 135h62m-12-8 12 8-12 8"/><path d="M570 135h62m-12-8 12 8-12 8"/></g>
+  <text x="25" y="232" class="body">Then move the forecast date forward and repeat. Each model uses only information available at that date.</text>
+  <text x="25" y="255" class="body">A saved external forecast can be compared only on the same item, date, and horizon.</text>
+</svg>
