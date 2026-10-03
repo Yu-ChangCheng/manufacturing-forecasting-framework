@@ -4,7 +4,7 @@ This repository is designed to be public. The two original company notebooks and
 
 ## Before publishing
 
-1. Review every file in this folder. The intended public files are the Python package, local Streamlit app and launcher, tests, two fictional CSVs, attributed public car-parts subset, generator and converter scripts, documentation, license, and project metadata.
+1. Review every file in this folder. The intended public files are the Python package, local Streamlit app and launcher, output-free technical notebook, tests, one fictional CSV, attributed public car-parts subset, generator scripts, documentation, license, and project metadata.
 2. Check for employer names, database hostnames, connection settings, passwords, customer names, and real sales figures. Do not rely only on `.gitignore`; Git can include files that were added earlier.
 3. Run `git status --short` and `git ls-files` inside this folder. Check the full list before pushing.
 4. Run the guided fictional demo, public-data example, and automated tests in the README. Backtest outputs and the downloaded full `.tsf` source should remain in the ignored `outputs/` folder.

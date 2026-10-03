@@ -183,6 +183,7 @@ def main() -> None:
     st.set_page_config(page_title="Monthly Demand Forecasting", page_icon="📈", layout="wide")
     st.title("Understand your monthly demand forecast")
     st.write("Start with a fictional teaching example, explore public data, or bring your own CSV. Check the data, compare forecasts against past months, then download a future forecast.")
+    st.caption("For feature selection, parameter tuning, and a saved model, open notebooks/monthly_demand_workbench.ipynb in JupyterLab.")
     st.image(str(ROOT / "docs" / "workflow.svg"), caption="The same steps apply to your data. Backtesting comes before a future forecast.")
 
     st.header("1. Prepare the data")

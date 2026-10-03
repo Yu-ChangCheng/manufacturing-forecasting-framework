@@ -4,7 +4,7 @@ A small, reproducible framework for monthly item-level demand forecasting. It he
 
 ![Five-step forecasting workflow](docs/workflow.svg)
 
-The repository includes a [reproducible fictional seasonal-demand demo](docs/random-forest-demo.md), an older fictional sample, and a small, attributed sample of public Monash car-parts sales data hosted on Hugging Face. It has no employer database connector, private sales records, credentials, or proprietary code. It is an educational starting point, not a ready-made planning system or a claim that machine learning always improves forecasts.
+The repository includes a [reproducible fictional seasonal-demand demo](docs/random-forest-demo.md) and a small, attributed sample of public Monash car-parts sales data hosted on Hugging Face. It has no employer database connector, private sales records, credentials, or proprietary code. It is an educational starting point, not a claim that machine learning always improves forecasts.
 
 ## Start here: guided local app
 
@@ -26,6 +26,12 @@ Your browser should open the local app. Keep the default **Random Forest teachin
 
 The fictional demo deliberately has recurring seasonality that Random Forest can learn. In the included 12-origin, one-month-ahead backtest, it reached **66/72 ±25% hits and 10.8% WAPE**, compared with **62/72 and 12.9%** for the same-month-last-year baseline. These are synthetic results, not evidence about an employer. The public car-parts sample has 51 months for five items; its source replaced originally missing values with zeros. It is useful for seeing a harder case where Random Forest does not lead on hit rate. [Data source and attribution](docs/public-data.md).
 
+## Technical notebook and configurable model
+
+The [editable workbench notebook](notebooks/monthly_demand_workbench.ipynb) walks through importing your CSV or Excel file, cleaning and inspecting it, selecting lag/rolling/calendar features, reserving later months as a test, configuring or automatically tuning a Random Forest, comparing baselines, visualizing results, and saving a final local model. The reusable implementation is [`mfg_forecast.workbench`](src/mfg_forecast/workbench.py).
+
+To use the notebook, install the `[notebook]` extra in a virtual environment and run `python -m jupyter lab` from this folder. Open `notebooks/monthly_demand_workbench.ipynb` and choose **Run All** with the included fictional sample first. Then edit the clearly marked input cell for your own data. See the [technical guide](docs/technical-workbench.md) for exact commands, data rules, tuning settings, and limits. All notebook outputs and model files are saved only under Git-ignored `outputs/`.
+
 ## What you get
 
 - Strict checks for monthly CSV format, duplicate item-month pairs, negative quantities, and missing months.
@@ -33,6 +39,7 @@ The fictional demo deliberately has recurring seasonality that Random Forest can
 - A Random Forest that uses only information available at each forecast origin.
 - An optional LSTM example for comparing a sequence model with simpler approaches.
 - Rolling-origin backtests, a **within ±25% hit rate**, WAPE, bias, matched external-forecast comparison, and an optional chart.
+- A configurable Random Forest experiment with a chronological holdout, earlier rolling tuning folds, feature inspection, and a locally saved model.
 
 The training and forecast process is intentionally transparent. The code is small enough to read and adapt, while the [methodology guide](docs/methodology.md) describes important limitations.
 
@@ -76,30 +83,6 @@ mfg-forecast plot --predictions outputs/backtest_predictions.csv --item DEMO-04
 ```
 
 Read the [explanation, diagram, score table, and chart](docs/random-forest-demo.md). The command creates `outputs/backtest_predictions.csv`, `outputs/backtest_metrics.csv`, and `outputs/backtest_chart.png`. These output files are ignored by Git.
-
-### Older fictional sample
-
-The repository includes `examples/synthetic_demand.csv`. You can regenerate it with:
-
-```powershell
-mfg-forecast sample-data --output examples/synthetic_demand.csv
-```
-
-Run a one-month-ahead backtest at the last six eligible forecast origins:
-
-```powershell
-mfg-forecast backtest --data examples/synthetic_demand.csv --horizon 1 --origins 6
-```
-
-The command prints a small metric table. It trains separately at each origin using only demand known by that month, then compares the prediction with the later actual quantity.
-
-Plot one fictional item:
-
-```powershell
-mfg-forecast plot --predictions outputs/backtest_predictions.csv --item SYNTH-001
-```
-
-Open `outputs/backtest_chart.png`. It shows actual demand and each model's forecasts across the backtest months.
 
 You can also test the public Hugging Face example from the command line:
 
@@ -169,22 +152,19 @@ The tool reports model scores; **you** must decide whether a difference is meani
 ## Folder guide
 
 ```text
-examples/synthetic_rf_demo.csv  Reproducible seasonal-demand teaching sample
-scripts/generate_rf_demo.py     Recipe for that fictional sample
-docs/random-forest-demo.md      Diagram, results, and tutorial links
-examples/synthetic_demand.csv   Older fictional sample
-examples/hf_car_parts_sample.csv  Attributed public teaching sample
-streamlit_app.py                  Guided local CSV app
-START_APP.bat                    Windows double-click launcher
-src/mfg_forecast/prepare.py      Column mapping and explicit gap handling
-src/mfg_forecast/core.py         Validation, models, backtesting, metrics
-src/mfg_forecast/cli.py          Commands and chart
-docs/methodology.md              Evaluation rules and limitations
-docs/workflow.svg                Overview diagram
-tests/test_core.py               Leakage and metric checks
-tests/test_prepare.py            CSV mapping and gap checks
-docs/getting-started.md          Nontechnical walkthrough
-docs/public-data.md              Hugging Face source and license
+examples/synthetic_rf_demo.csv        Fictional seasonal-demand data
+examples/hf_car_parts_sample.csv      Attributed public teaching sample
+notebooks/monthly_demand_workbench.ipynb  Editable technical experiment
+src/mfg_forecast/workbench.py         Feature selection, time split, tuning, plots
+src/mfg_forecast/prepare.py           Column mapping and gap handling
+src/mfg_forecast/core.py              Baselines, backtesting, metrics
+streamlit_app.py                      Guided beginner app
+START_APP.bat                         Windows app launcher
+docs/technical-workbench.md          Notebook and API guide
+docs/random-forest-demo.md           Fictional data recipe and results
+docs/getting-started.md              Beginner walkthrough
+docs/public-data.md                  Hugging Face source and license
+tests/                               Leakage, preparation, and demo checks
 ```
 
 ## Data and confidentiality
