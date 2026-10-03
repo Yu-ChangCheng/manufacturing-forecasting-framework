@@ -1,0 +1,12 @@
+__pycache__/
+.pytest_cache/
+.pytest_tmp/
+test-temp*/
+.venv/
+*.pyc
+*.joblib
+*.keras
+outputs/
+data/private/
+.env
+.ipynb_checkpoints/

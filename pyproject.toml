@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "manufacturing-forecasting-framework"
+version = "0.1.0"
+description = "A transparent monthly demand forecasting workflow for small manufacturers"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {file = "LICENSE"}
+authors = [{name = "Yu-Chang Cheng"}]
+dependencies = [
+  "numpy>=1.26,<3",
+  "pandas>=2.1,<3",
+  "scikit-learn>=1.4,<2",
+  "matplotlib>=3.8,<4",
+]
+
+[project.optional-dependencies]
+lstm = ["tensorflow>=2.16,<3"]
+test = ["pytest>=8,<10"]
+
+[project.scripts]
+mfg-forecast = "mfg_forecast.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

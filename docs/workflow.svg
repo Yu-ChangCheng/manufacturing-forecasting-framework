@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="190" viewBox="0 0 920 190" role="img" aria-labelledby="title desc">
+  <title id="title">Forecasting workflow</title>
+  <desc id="desc">Monthly data flows through validation, rolling time splits, baseline and model comparison, forecast output, and monitoring.</desc>
+  <style>text{font:16px Arial,sans-serif;fill:#17324d}.box{fill:#eef5fb;stroke:#3572a6;stroke-width:2}.arrow{stroke:#55758d;stroke-width:3;fill:none}</style>
+  <rect width="920" height="190" fill="white"/>
+  <g class="box"><rect x="15" y="55" width="130" height="75" rx="10"/><rect x="168" y="55" width="130" height="75" rx="10"/><rect x="321" y="55" width="130" height="75" rx="10"/><rect x="474" y="55" width="130" height="75" rx="10"/><rect x="627" y="55" width="130" height="75" rx="10"/><rect x="780" y="55" width="125" height="75" rx="10"/></g>
+  <g text-anchor="middle"><text x="80" y="86">Monthly</text><text x="80" y="108">CSV</text><text x="233" y="96">Validate</text><text x="386" y="86">Rolling</text><text x="386" y="108">backtest</text><text x="539" y="86">Compare</text><text x="539" y="108">models</text><text x="692" y="96">Forecast</text><text x="842" y="86">Monitor</text><text x="842" y="108">actuals</text></g>
+  <g class="arrow"><path d="M145 92h21m132 0h21m132 0h21m132 0h21m132 0h21"/></g>
+</svg>
+
