@@ -3,6 +3,8 @@ __pycache__/
 .pytest_tmp/
 test-temp*/
 .venv/
+build/
+*.egg-info/
 *.pyc
 *.joblib
 *.keras
