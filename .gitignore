@@ -4,6 +4,7 @@ __pycache__/
 test-temp*/
 .venv/
 build/
+dist/
 *.egg-info/
 *.pyc
 *.joblib

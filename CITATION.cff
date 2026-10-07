@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use this framework, please cite the software and the underlying method or data papers where relevant."
+type: software
+title: "Practical Manufacturing Demand Forecasting Framework"
+authors:
+  - family-names: Cheng
+    given-names: Yu-Chang
+version: 0.2.0
+license: MIT
+repository-code: "https://github.com/Yu-ChangCheng/manufacturing-forecasting-framework"
+url: "https://github.com/Yu-ChangCheng/manufacturing-forecasting-framework"
+keywords:
+  - demand forecasting
+  - manufacturing
+  - random forest
+  - time series

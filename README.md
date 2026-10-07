@@ -1,5 +1,9 @@
 # Practical Manufacturing Demand Forecasting
 
+[![CI](https://github.com/Yu-ChangCheng/manufacturing-forecasting-framework/actions/workflows/ci.yml/badge.svg)](https://github.com/Yu-ChangCheng/manufacturing-forecasting-framework/actions/workflows/ci.yml)
+![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)
+![License: MIT](https://img.shields.io/badge/License-MIT-green)
+
 A small, reproducible framework for monthly item-level demand forecasting. It helps a practitioner answer a basic question: **does a proposed model perform better than a simple forecast when tested on months it could not yet see?**
 
 ![Five-step forecasting workflow](docs/workflow.svg)
@@ -24,7 +28,14 @@ Your browser should open the local app. Keep the default **Random Forest teachin
 
 ![A backtest uses only earlier observations to predict a later month](docs/backtest-explained.svg)
 
-The fictional demo deliberately has recurring seasonality that Random Forest can learn. In the included 12-origin, one-month-ahead backtest, it reached **66/72 ±25% hits and 10.8% WAPE**, compared with **62/72 and 12.9%** for the same-month-last-year baseline. These are synthetic results, not evidence about an employer. The public car-parts sample has 51 months for five items; its source replaced originally missing values with zeros. It is useful for seeing a harder case where Random Forest does not lead on hit rate. [Data source and attribution](docs/public-data.md).
+The fictional demo deliberately has recurring seasonality that Random Forest can learn. Its included 12-origin, one-month-ahead backtest gives:
+
+| Method | ±25% hits | WAPE |
+| --- | ---: | ---: |
+| Random Forest | 66/72 (91.7%) | 10.8% |
+| Same month last year | 62/72 (86.1%) | 12.9% |
+
+These are **synthetic results**, not evidence about an employer or a guarantee on other data. The public car-parts sample has 51 months for five items; its source replaced originally missing values with zeros. It is useful for seeing a harder case where Random Forest does not lead on hit rate. [Data source and attribution](docs/public-data.md).
 
 ## Technical notebook and configurable model
 
@@ -42,6 +53,16 @@ To use the notebook, install the `[notebook]` extra in a virtual environment and
 - A configurable Random Forest experiment with a chronological holdout, earlier rolling tuning folds, feature inspection, and a locally saved model.
 
 The training and forecast process is intentionally transparent. The code is small enough to read and adapt, while the [methodology guide](docs/methodology.md) describes important limitations.
+
+### Model and evaluation in one minute
+
+At forecast origin $o$, the model uses only quantities observed through that month. For item $i$, a lag such as $\operatorname{lag}_{12}=y_{i,o-11}$ represents the quantity from the same month a year before a one-month-ahead target. The forest averages $B$ regression trees and clips negative predictions to zero:
+
+$$
+\hat y_{i,o+h}=\max\!\left(0,\frac{1}{B}\sum_{b=1}^{B}T_b(x_{i,o,h})\right).
+$$
+
+Here $h$ is the forecast horizon and $x_{i,o,h}$ contains only known lag, rolling-mean, item, and calendar features. The Random Forest method follows [Breiman (2001)](https://doi.org/10.1023/A:1010933404324); repeated historical forecast origins follow the evaluation approach discussed by [Tashman (2000)](https://doi.org/10.1016/S0169-2070(00)00065-0). On matched item-month forecasts, the project's **±25% hit rate** is the fraction satisfying $|\hat y-y|\leq0.25|y|$. The rule is a project-specific evaluation threshold, not a result from a cited paper. Report it with WAPE, sample size, horizon, and the same-row baselines. See the [full formulas and validation protocol](docs/methodology.md) and [annotated research references](docs/references.md).
 
 ## 1. Install
 
@@ -164,6 +185,8 @@ docs/technical-workbench.md          Notebook and API guide
 docs/random-forest-demo.md           Fictional data recipe and results
 docs/getting-started.md              Beginner walkthrough
 docs/public-data.md                  Hugging Face source and license
+docs/methodology.md                  Equations, validation, and limits
+docs/references.md                   Research papers and their role here
 tests/                               Leakage, preparation, and demo checks
 ```
 
@@ -173,4 +196,4 @@ This project deliberately has no company connection strings or database-writing 
 
 ## License and feedback
 
-The original code in this repository is MIT licensed. Issues and reproducible synthetic examples are welcome. Describe the data shape, horizon, and validation approach when reporting a model result; do not post private records.
+The original code in this repository is [MIT licensed](LICENSE). Use [CITATION.cff](CITATION.cff) or GitHub's **Cite this repository** link to cite the software; cite the underlying papers separately when discussing their methods or dataset. Issues and reproducible synthetic examples are welcome. Describe the data shape, horizon, and validation approach when reporting a model result; do not post private records.
