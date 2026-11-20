@@ -7,6 +7,7 @@ import pytest
 from mfg_forecast.core import (
     add_benchmark,
     backtest,
+    benchmark_coverage,
     evaluate,
     forecast_at_origin,
     load_history,
@@ -47,6 +48,10 @@ def test_benchmark_restricts_models_to_same_observations(history: pd.DataFrame, 
     matched = add_benchmark(result, file)
     assert set(matched["model"]) == {"naive", "random_forest", "external_benchmark"}
     assert matched.groupby("model").size().nunique() == 1
+    coverage = benchmark_coverage(result, matched)
+    assert list(coverage["available_items"]) == [3, 3, 3]
+    assert list(coverage["matched_items"]) == [2, 0, 0]
+    assert coverage["target_month"].is_monotonic_increasing
 
 
 def test_hit_rate_is_not_wape():

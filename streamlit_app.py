@@ -13,6 +13,7 @@ from mfg_forecast.core import (
     LOOKBACK,
     add_benchmark_frame,
     backtest,
+    benchmark_coverage,
     evaluate,
     forecast_at_origin,
     load_history,
@@ -156,7 +157,7 @@ def _chart(predictions: pd.DataFrame, item: str) -> None:
 
 
 def _report(source: str, note: str, history: pd.DataFrame, items: list[str], horizon: int,
-            origins: int, metrics: pd.DataFrame) -> str:
+            origins: int, metrics: pd.DataFrame, coverage_summary: str | None) -> str:
     lines = [
         "Monthly demand forecasting: retrospective teaching report",
         f"Data source: {source}",
@@ -164,13 +165,16 @@ def _report(source: str, note: str, history: pd.DataFrame, items: list[str], hor
         f"Selected items ({len(items)}): {', '.join(items)}",
         f"Observed months: {history['month'].min():%Y-%m} through {history['month'].max():%Y-%m}",
         f"Forecast horizon: {horizon} month(s); backtest origins: {origins}",
-        "Each method was scored on the same observed item-month rows when an external forecast was provided.",
+    ]
+    if coverage_summary is not None:
+        lines.append(coverage_summary)
+    lines.extend([
         "Hit: absolute error is at most 25% of actual quantity; when actual is zero, only a zero forecast hits.",
         "WAPE: total absolute error divided by total actual quantity; lower is better.",
         "These are retrospective scores and do not establish future performance.",
         "",
         "Method | item-month forecasts | hits within 25% | WAPE | signed bias",
-    ]
+    ])
     for row in metrics.itertuples(index=False):
         lines.append(
             f"{MODEL_NAMES.get(row.model, row.model)} | {row.n} | {row.hit_rate_25:.1%} | "
@@ -217,7 +221,11 @@ def main() -> None:
     if max_origins < 1:
         st.error(f"These items need at least {LOOKBACK + horizon + 1} consecutive months for a backtest at this horizon. Choose more history or a shorter horizon.")
         st.stop()
-    origins = int(st.slider("How many past forecast dates should we test?", 1, max_origins, min(6, max_origins)))
+    if max_origins == 1:
+        st.caption("This history allows one past forecast date at the selected horizon.")
+        origins = 1
+    else:
+        origins = st.slider("How many past forecast dates should we test?", 1, max_origins, min(6, max_origins))
     use_rf = st.checkbox("Include Random Forest", value=True,
                          help="Compare a machine-learning model with the two simple reference forecasts.")
     models = ("naive", "seasonal_naive", "random_forest") if use_rf else ("naive", "seasonal_naive")
@@ -238,11 +246,14 @@ def main() -> None:
         try:
             with st.spinner("Testing earlier months and preparing the next forecast..."):
                 predictions = backtest(chosen_history, horizon=horizon, origins=origins, models=models)
+                coverage = None
                 if benchmark_bytes:
-                    predictions = add_benchmark_frame(predictions, _read_table(benchmark_bytes, benchmark_upload.name))
+                    compared = add_benchmark_frame(predictions, _read_table(benchmark_bytes, benchmark_upload.name))
+                    coverage = benchmark_coverage(predictions, compared)
+                    predictions = compared
                 metrics = evaluate(predictions)
                 future = forecast_at_origin(chosen_history, chosen_history["month"].max(), horizon, models)
-                st.session_state["analysis"] = (fingerprint, predictions, metrics, future)
+                st.session_state["analysis"] = (fingerprint, predictions, metrics, future, coverage)
         except (ValueError, TypeError) as exc:
             st.error(str(exc))
             st.stop()
@@ -251,9 +262,31 @@ def main() -> None:
     if not saved or saved[0] != fingerprint:
         st.info("Choose your settings, then run the backtest. If you change the data or settings, run it again.")
         st.stop()
-    _, predictions, metrics, future = saved
+    _, predictions, metrics, future, coverage = saved
 
     st.header("3. Read the result")
+    coverage_summary = None
+    if coverage is not None:
+        matched = coverage["matched_items"].sum()
+        available = coverage["available_items"].sum()
+        covered_dates = coverage["matched_items"].gt(0).sum()
+        coverage_summary = (
+            f"Saved forecast matched {matched:,} of {available:,} available item-months "
+            f"({matched / available:.1%}) across {covered_dates} of {len(coverage)} forecast dates. "
+            "All reported scores use those same matched rows."
+        )
+        st.info(coverage_summary)
+        with st.expander("See which months your saved forecast covered"):
+            coverage_view = coverage.assign(
+                origin_month=coverage["origin_month"].dt.strftime("%Y-%m"),
+                target_month=coverage["target_month"].dt.strftime("%Y-%m"),
+            ).rename(columns={
+                "origin_month": "Last known month",
+                "target_month": "Month forecasted",
+                "available_items": "Available items",
+                "matched_items": "Items scored",
+            })
+            st.dataframe(coverage_view, hide_index=True)
     display = metrics.assign(
         Method=metrics["model"].map(MODEL_NAMES),
         **{"Forecasts tested": metrics["n"], "Hits within ±25%": metrics["hit_rate_25"].map(lambda x: f"{x:.1%}"),
@@ -270,7 +303,8 @@ def main() -> None:
             f"({low_wape['wape']:.1%}); {MODEL_NAMES[high_hit['model']]} had the highest ±25% hit rate "
             f"({high_hit['hit_rate_25']:.1%}). These measures can favor different methods."
         )
-    chart_item = st.selectbox("View one item's past forecasts", chosen)
+    scored_items = set(predictions["item_id"].astype(str))
+    chart_item = st.selectbox("View one item's past forecasts", [item for item in chosen if item in scored_items])
     _chart(predictions, chart_item)
     st.write("**Forecast for the selected future month**")
     future_view = future.copy()
@@ -292,7 +326,7 @@ def main() -> None:
     middle.download_button("Download future forecast", future.to_csv(index=False),
                            file_name="future_forecast.csv", mime="text/csv")
     right.download_button("Download plain-language report",
-                          _report(source, note, chosen_history, chosen, horizon, origins, metrics),
+                          _report(source, note, chosen_history, chosen, horizon, origins, metrics, coverage_summary),
                           file_name="forecast_report.txt", mime="text/plain")
     st.caption("Uploaded data and results stay in this running local app session unless you download them. For confidential data, keep the app on a trusted computer.")
 

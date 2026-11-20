@@ -157,6 +157,8 @@ mfg-forecast backtest --data path/to/your_monthly_history.csv --benchmark path/t
 
 The program restricts **all** models to the same matched origin, target month, and item rows. This matters: comparing two percentages from different items, months, or forecast horizons can give a misleading answer. The benchmark file should be an independently preserved historical forecast, not a number reconstructed after actual sales were known.
 
+In the local app, the score table and downloadable report show how many item-months matched the saved forecast. Open the coverage details to see which forecast dates had partial or zero coverage.
+
 ## 5. Read the metrics correctly
 
 | Metric | Meaning |

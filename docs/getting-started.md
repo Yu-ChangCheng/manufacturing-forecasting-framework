@@ -62,6 +62,8 @@ The methods can rank differently under these measures. Check the count of item-m
 
 For a fair comparison with a sales team, expand **Optional: compare a forecast saved by your team**. Download its template. Each row needs the last month known when the forecast was made (`origin_month`), the month predicted (`target_month`), `item_id`, and `forecast_qty`. Both date columns use the first of the month, such as `2025-01-01`. The app scores all methods only on item, origin, and target combinations present in that saved file. A forecast reconstructed after actual sales became known is not a valid prospective comparison.
 
+Check the coverage above the score table. If your saved file matches 12 of 36 available item-months, the scores describe those 12 observations. Open **See which months your saved forecast covered** to find dates with partial or zero coverage. The past-forecast chart lists items that could be scored. The future forecast still lists every selected item.
+
 ## 5. Download and review
 
 Download the past predictions, future forecast, and plain-language report. The future forecast should be reviewed alongside known promotions, supply interruptions, launches, unusual orders, and business constraints. This prototype gives point estimates and does not calculate a reliable uncertainty interval or make inventory decisions for you.

@@ -258,3 +258,17 @@ def add_benchmark_frame(backtested: pd.DataFrame, benchmark: pd.DataFrame) -> pd
     if benchmark.empty:
         raise ValueError("Benchmark has no rows matching this backtest")
     return pd.concat([comparable, benchmark], ignore_index=True)
+
+
+def benchmark_coverage(backtested: pd.DataFrame, compared: pd.DataFrame) -> pd.DataFrame:
+    """Count available and scored item-month observations for each forecast origin."""
+    dates = ["origin_month", "target_month"]
+    available = backtested.groupby(dates)["item_id"].nunique().rename("available_items")
+    matched = (
+        compared.loc[compared["model"].eq("external_benchmark")]
+        .groupby(dates)["item_id"].nunique()
+        .rename("matched_items")
+    )
+    return available.to_frame().join(
+        matched.reindex(available.index, fill_value=0)
+    ).reset_index()
