@@ -1,4 +1,4 @@
-# Technical workbench: from a CSV to a tested forest
+# Technical workbench: from a CSV to tested forecasts
 
 The editable [monthly demand workbench notebook](../notebooks/monthly_demand_workbench.ipynb) provides a complete local experiment. It calls functions in [`mfg_forecast.workbench`](../src/mfg_forecast/workbench.py), so the data rules and model code are reusable outside Jupyter.
 
@@ -45,6 +45,12 @@ The cleaning step rejects invalid dates, negative or nonnumeric quantities, dupl
 
 The code fits one model on the training portion, scores it once on the later holdout, and then fits a final model on all observed history for a future estimate. The model is a scikit-learn `Pipeline`, with one-hot item preprocessing and `RandomForestRegressor`. The saved `.joblib` bundle includes the fitted pipeline, feature configuration, horizon, and latest training month. `load_forecaster` reopens that bundle for a later local prediction. Load it only from a trusted source and keep compatible package versions.
 
+## Add the Transformer to the test
+
+In the same notebook environment, install `python -m pip install -e ".[notebook,transformer]"`. Restart the kernel, set `RUN_TRANSFORMER = True`, and choose **Run All**. Set `TRANSFORMER` to choose epochs, encoder width, and an attention head count that divides that width. Choose those settings before reviewing the final holdout. The forest's tuning search stays unchanged.
+
+The Transformer uses a sequence of known demand values and calendar/position features, with the same lookback length as the forest. It needs at least 24 labeled windows in the training period. Both models are held fixed after the first test origin and scored on identical item-month rows. Set `PLOT_ITEM` to see one item's scores and forecast trace alongside the pooled comparison. [Transformer architecture and time boundaries](methodology.md#transformer-encoder)
+
 ## Time boundaries
 
 For each row, **origin** is the last month whose actual quantity could be used as an input; **target** is the later month being predicted. The test uses the last `TEST_ORIGINS` origin months. Training labels are limited to targets on or before the **first test origin**. For a three-month horizon, this prevents the model from learning a December outcome before making an October forecast for January.
@@ -64,6 +70,8 @@ workbench_test_metrics.csv
 workbench_future_forecast.csv
 workbench_model.joblib
 ```
+
+When the Transformer is enabled, `workbench_test_metrics.csv` and `workbench_test_predictions.csv` include it, and `workbench_transformer_forecast.csv` contains its refitted future forecasts.
 
 The `.ipynb` file in Git contains code and explanatory text only, with no run outputs. Review every file before publishing changes. The notebook generator is [`scripts/build_workbench_notebook.py`](../scripts/build_workbench_notebook.py); rerun it only when you intend to replace notebook edits with the maintained version.
 

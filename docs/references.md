@@ -8,6 +8,12 @@ Breiman, L. (2001). Random Forests. *Machine Learning, 45*, 5–32. [https://doi
 
 This is the original Random Forest paper. The framework uses scikit-learn's `RandomForestRegressor` with lag, rolling-mean, item, and calendar features. The paper does not establish a particular accuracy level for this data or this implementation.
 
+## Transformer
+
+Vaswani, A., et al. (2017). Attention Is All You Need. *Advances in Neural Information Processing Systems, 30*. [Paper](https://papers.neurips.cc/paper_files/paper/2017/hash/3f5ee243547dee91fbd053c1c4a845aa-Abstract.html).
+
+The paper introduces the Transformer. This project applies an encoder block to numeric demand windows using Keras multi-head self-attention. [Keras MultiHeadAttention](https://keras.io/api/layers/attention_layers/multi_head_attention/)
+
 ## Rolling-origin evaluation
 
 Tashman, L. J. (2000). Out-of-sample tests of forecasting accuracy: An analysis and review. *International Journal of Forecasting, 16*(4), 437–450. [https://doi.org/10.1016/S0169-2070(00)00065-0](https://doi.org/10.1016/S0169-2070(00)00065-0).

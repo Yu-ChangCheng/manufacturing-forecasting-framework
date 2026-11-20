@@ -54,11 +54,14 @@ The app compares:
 | Last month | Predict the same quantity as the latest known month. |
 | Same month last year | Predict the quantity from the corresponding month a year earlier. |
 | Random Forest | Learn patterns from preceding months and item IDs. It still uses only past information. |
+| Transformer (optional) | Learn how to weigh the past 24 months using self-attention. |
 | Your saved forecast (optional) | A forecast recorded before the actual quantity was known. |
+
+To enable the Transformer, run `python -m pip install -e ".[app,transformer]"` in the same environment that launches Streamlit. Restart the app, select **Include Transformer**, and begin with a few forecast dates. The app refits the model at each forecast date.
 
 The **±25% hit rate** counts item-month forecasts whose error is no more than one-quarter of the actual quantity. If actual demand is zero, only a zero forecast is a hit. **WAPE** adds all absolute errors and divides by all actual quantities; lower is better. It gives high-volume observations more influence than the hit rate. **Bias** shows the overall direction of error: positive means overforecasting, negative means underforecasting.
 
-The methods can rank differently under these measures. Check the count of item-month forecasts, the item selection, the months tested, and the chart. A retrospective backtest is a simulation of past decisions. Keep actual future forecasts saved before outcomes happen if you want stronger evidence of real-world performance.
+The methods can rank differently under these measures. Use **Model comparison** to switch the bar chart between WAPE and hit rate. Use **Past forecasts** to inspect one item against observed quantities, and **Future forecast** to read estimates for the same item across methods. Keep future forecasts saved before outcomes happen to measure real-world performance.
 
 For a fair comparison with a sales team, expand **Optional: compare a forecast saved by your team**. Download its template. Each row needs the last month known when the forecast was made (`origin_month`), the month predicted (`target_month`), `item_id`, and `forecast_qty`. Both date columns use the first of the month, such as `2025-01-01`. The app scores all methods only on item, origin, and target combinations present in that saved file. A forecast reconstructed after actual sales became known is not a valid prospective comparison.
 

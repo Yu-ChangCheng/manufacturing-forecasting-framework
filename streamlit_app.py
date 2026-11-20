@@ -19,6 +19,7 @@ from mfg_forecast.core import (
     load_history,
 )
 from mfg_forecast.prepare import prepare_monthly_data
+from mfg_forecast.transformer import TransformerConfig
 
 
 ROOT = Path(__file__).resolve().parent
@@ -28,6 +29,7 @@ MODEL_NAMES = {
     "naive": "Last month",
     "seasonal_naive": "Same month last year",
     "random_forest": "Random Forest",
+    "transformer": "Transformer",
     "external_benchmark": "Your saved forecast",
 }
 
@@ -153,11 +155,37 @@ def _chart(predictions: pd.DataFrame, item: str) -> None:
         index="target_month", columns="model", values="forecast_qty"
     )
     chart = actual.to_frame().join(model_lines).sort_index()
-    st.line_chart(chart, x_label="Month being forecast", y_label="Quantity")
+    plot = st.scatter_chart if len(chart) == 1 else st.line_chart
+    plot(chart, x_label="Month forecasted", y_label="Quantity")
+
+
+def _show_scores(metrics: pd.DataFrame) -> None:
+    scores = metrics.assign(
+        Method=metrics["model"].map(MODEL_NAMES),
+        **{
+            "Forecasts tested": metrics["n"],
+            "Hits within ±25%": metrics["hit_rate_25"].map(lambda x: f"{x:.1%}"),
+            "WAPE": metrics["wape"].map(lambda x: f"{x:.1%}" if pd.notna(x) else "n/a"),
+            "Bias": metrics["bias_ratio"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "n/a"),
+        },
+    )[["Method", "Forecasts tested", "Hits within ±25%", "WAPE", "Bias"]]
+    st.dataframe(scores, hide_index=True)
+    metric_options = {"WAPE · lower is better": "wape", "±25% hit rate · higher is better": "hit_rate_25"}
+    label = st.radio("Metric to chart", list(metric_options), horizontal=True)
+    chart = pd.DataFrame({"Method": scores["Method"], "Percent": metrics[metric_options[label]] * 100}).dropna()
+    if chart.empty:
+        st.info("WAPE is undefined when the total actual quantity is zero.")
+    else:
+        st.bar_chart(chart, x="Method", y="Percent", x_label="Forecast method", y_label="Percent")
+    st.caption(
+        "One observation is one item at one target month. A hit requires an error within 25% of actual "
+        "quantity. WAPE divides total absolute error by total actual quantity. Positive bias means overforecasting."
+    )
 
 
 def _report(source: str, note: str, history: pd.DataFrame, items: list[str], horizon: int,
-            origins: int, metrics: pd.DataFrame, coverage_summary: str | None) -> str:
+            origins: int, metrics: pd.DataFrame, coverage_summary: str | None,
+            transformer_config: TransformerConfig | None) -> str:
     lines = [
         "Monthly demand forecasting: retrospective teaching report",
         f"Data source: {source}",
@@ -168,6 +196,8 @@ def _report(source: str, note: str, history: pd.DataFrame, items: list[str], hor
     ]
     if coverage_summary is not None:
         lines.append(coverage_summary)
+    if transformer_config is not None:
+        lines.append(f"Transformer: {LOOKBACK} months of input, {transformer_config.epochs} epochs per fit.")
     lines.extend([
         "Hit: absolute error is at most 25% of actual quantity; when actual is zero, only a zero forecast hits.",
         "WAPE: total absolute error divided by total actual quantity; lower is better.",
@@ -176,26 +206,28 @@ def _report(source: str, note: str, history: pd.DataFrame, items: list[str], hor
         "Method | item-month forecasts | hits within 25% | WAPE | signed bias",
     ])
     for row in metrics.itertuples(index=False):
+        wape = f"{row.wape:.1%}" if pd.notna(row.wape) else "n/a"
+        bias = f"{row.bias_ratio:+.1%}" if pd.notna(row.bias_ratio) else "n/a"
         lines.append(
-            f"{MODEL_NAMES.get(row.model, row.model)} | {row.n} | {row.hit_rate_25:.1%} | "
-            f"{row.wape:.1%} | {row.bias_ratio:.1%}"
+            f"{MODEL_NAMES.get(row.model, row.model)} | {row.n} | {row.hit_rate_25:.1%} | {wape} | {bias}"
         )
     return "\n".join(lines) + "\n"
 
 
 def main() -> None:
     st.set_page_config(page_title="Monthly Demand Forecasting", page_icon="📈", layout="wide")
-    st.title("Understand your monthly demand forecast")
-    st.write("Start with a fictional teaching example, explore public data, or bring your own CSV. Check the data, compare forecasts against past months, then download a future forecast.")
-    st.caption("For feature selection, parameter tuning, and a saved model, open notebooks/monthly_demand_workbench.ipynb in JupyterLab.")
-    st.image(str(ROOT / "docs" / "workflow.svg"), caption="The same steps apply to your data. Backtesting comes before a future forecast.")
+    st.title("Monthly demand forecasting")
+    st.write("Compare forecasting models on past months and estimate demand for your next planning cycle.")
+    with st.expander("See how the workflow works"):
+        st.image(str(ROOT / "docs" / "workflow.svg"))
+        st.caption("For feature selection and parameter tuning, use the monthly demand workbench in JupyterLab.")
 
     st.header("1. Prepare the data")
     history, source, note = _history()
-    st.caption(
-        f"{history['item_id'].nunique()} items · {history['month'].min():%b %Y} to "
-        f"{history['month'].max():%b %Y} · {len(history):,} monthly rows"
-    )
+    items_card, quantity_card, period_card = st.columns([1, 1, 2])
+    items_card.metric("Items", f"{history['item_id'].nunique():,}")
+    quantity_card.metric("Monthly observations", f"{len(history):,}")
+    period_card.metric("History", f"{history['month'].min():%b %Y} – {history['month'].max():%b %Y}")
     totals = history.groupby("item_id")["quantity"].sum().sort_values(ascending=False)
     all_items = list(totals.index.astype(str))
     default_items = all_items if len(all_items) <= 10 else all_items[:10]
@@ -228,7 +260,24 @@ def main() -> None:
         origins = st.slider("How many past forecast dates should we test?", 1, max_origins, min(6, max_origins))
     use_rf = st.checkbox("Include Random Forest", value=True,
                          help="Compare a machine-learning model with the two simple reference forecasts.")
-    models = ("naive", "seasonal_naive", "random_forest") if use_rf else ("naive", "seasonal_naive")
+    use_transformer = st.checkbox(
+        "Include Transformer",
+        help="Train an attention model on the last 24 known months. Requires the optional TensorFlow package.",
+    )
+    transformer_config = None
+    models = ["naive", "seasonal_naive"]
+    if use_rf:
+        models.append("random_forest")
+    if use_transformer:
+        models.append("transformer")
+        with st.expander("Transformer training settings"):
+            epochs = st.number_input("Epochs per fit", min_value=1, max_value=100, value=TransformerConfig.epochs)
+            st.caption(
+                "The app trains the Transformer at each forecast date and again for the future forecast. "
+                "Try fewer dates or epochs for a quicker first run."
+            )
+        transformer_config = TransformerConfig(epochs=epochs)
+    model_ids = tuple(models)
     with st.expander("Optional: compare a forecast saved by your team"):
         st.write("Only upload forecasts recorded before their actual quantities were known. Dates must be the first of the month.")
         st.download_button(
@@ -240,21 +289,27 @@ def main() -> None:
     benchmark_bytes = benchmark_upload.getvalue() if benchmark_upload else b""
     fingerprint = sha256(
         chosen_history.to_csv(index=False).encode("utf-8")
-        + repr((horizon, origins, models)).encode("utf-8") + benchmark_bytes
+        + repr((horizon, origins, model_ids, transformer_config)).encode("utf-8") + benchmark_bytes
     ).hexdigest()
     if st.button("Run the backtest and make a future forecast", type="primary"):
         try:
             with st.spinner("Testing earlier months and preparing the next forecast..."):
-                predictions = backtest(chosen_history, horizon=horizon, origins=origins, models=models)
+                predictions = backtest(
+                    chosen_history, horizon=horizon, origins=origins, models=model_ids,
+                    transformer_config=transformer_config,
+                )
                 coverage = None
                 if benchmark_bytes:
                     compared = add_benchmark_frame(predictions, _read_table(benchmark_bytes, benchmark_upload.name))
                     coverage = benchmark_coverage(predictions, compared)
                     predictions = compared
                 metrics = evaluate(predictions)
-                future = forecast_at_origin(chosen_history, chosen_history["month"].max(), horizon, models)
+                future = forecast_at_origin(
+                    chosen_history, chosen_history["month"].max(), horizon, model_ids,
+                    transformer_config=transformer_config,
+                )
                 st.session_state["analysis"] = (fingerprint, predictions, metrics, future, coverage)
-        except (ValueError, TypeError) as exc:
+        except (ValueError, TypeError, RuntimeError) as exc:
             st.error(str(exc))
             st.stop()
 
@@ -287,37 +342,23 @@ def main() -> None:
                 "matched_items": "Items scored",
             })
             st.dataframe(coverage_view, hide_index=True)
-    display = metrics.assign(
-        Method=metrics["model"].map(MODEL_NAMES),
-        **{"Forecasts tested": metrics["n"], "Hits within ±25%": metrics["hit_rate_25"].map(lambda x: f"{x:.1%}"),
-           "WAPE (lower is better)": metrics["wape"].map(lambda x: f"{x:.1%}" if pd.notna(x) else "n/a"),
-           "Bias": metrics["bias_ratio"].map(lambda x: f"{x:+.1%}" if pd.notna(x) else "n/a")},
-    )[["Method", "Forecasts tested", "Hits within ±25%", "WAPE (lower is better)", "Bias"]]
-    st.dataframe(display, hide_index=True)
-    st.caption("One forecast = one selected item at one target month. A hit means error ≤25% of actual; if actual is 0, only forecast 0 is a hit. WAPE weights larger quantities more heavily.")
-    if metrics["wape"].notna().any():
-        low_wape = metrics.loc[metrics["wape"].idxmin()]
-        high_hit = metrics.loc[metrics["hit_rate_25"].idxmax()]
-        st.info(
-            f"In these past months, {MODEL_NAMES[low_wape['model']]} had the lowest WAPE "
-            f"({low_wape['wape']:.1%}); {MODEL_NAMES[high_hit['model']]} had the highest ±25% hit rate "
-            f"({high_hit['hit_rate_25']:.1%}). These measures can favor different methods."
+    scores_tab, past_tab, future_tab = st.tabs(["Model comparison", "Past forecasts", "Future forecast"])
+    with scores_tab:
+        _show_scores(metrics)
+    with past_tab:
+        scored_items = set(predictions["item_id"].astype(str))
+        chart_item = st.selectbox("View one item's past forecasts", [item for item in chosen if item in scored_items])
+        _chart(predictions, chart_item)
+    with future_tab:
+        st.subheader(f"Estimated demand · {future['target_month'].iloc[0]:%B %Y}")
+        future_view = future.pivot(index="item_id", columns="model", values="forecast_qty")
+        future_view = future_view.reindex(index=chosen, columns=model_ids)
+        future_view = future_view.rename(columns=MODEL_NAMES).rename_axis(index="Item", columns=None)
+        st.dataframe(future_view.round(1).reset_index(), hide_index=True)
+        st.caption(
+            f"Based on history through {future['origin_month'].iloc[0]:%B %Y}. "
+            "Review known promotions, stockouts, and unusual orders before using the estimates."
         )
-    scored_items = set(predictions["item_id"].astype(str))
-    chart_item = st.selectbox("View one item's past forecasts", [item for item in chosen if item in scored_items])
-    _chart(predictions, chart_item)
-    st.write("**Forecast for the selected future month**")
-    future_view = future.copy()
-    future_view["model"] = future_view["model"].map(MODEL_NAMES)
-    for column in ("origin_month", "target_month"):
-        future_view[column] = future_view[column].dt.strftime("%Y-%m")
-    future_view["forecast_qty"] = future_view["forecast_qty"].round(1)
-    future_view = future_view.rename(columns={
-        "origin_month": "Last known month", "target_month": "Month forecasted",
-        "item_id": "Item", "model": "Method", "forecast_qty": "Estimated quantity",
-    })
-    st.dataframe(future_view, hide_index=True)
-    st.caption("A future forecast is a planning estimate, not a guarantee. Review promotions, stockouts, launches, and unusual orders before acting on it.")
 
     st.header("4. Keep your results")
     left, middle, right = st.columns(3)
@@ -326,7 +367,10 @@ def main() -> None:
     middle.download_button("Download future forecast", future.to_csv(index=False),
                            file_name="future_forecast.csv", mime="text/csv")
     right.download_button("Download plain-language report",
-                          _report(source, note, chosen_history, chosen, horizon, origins, metrics, coverage_summary),
+                          _report(
+                              source, note, chosen_history, chosen, horizon, origins, metrics,
+                              coverage_summary, transformer_config,
+                          ),
                           file_name="forecast_report.txt", mime="text/plain")
     st.caption("Uploaded data and results stay in this running local app session unless you download them. For confidential data, keep the app on a trusted computer.")
 

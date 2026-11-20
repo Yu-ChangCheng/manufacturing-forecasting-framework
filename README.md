@@ -48,7 +48,7 @@ To use the notebook, install the `[notebook]` extra in a virtual environment and
 - Strict checks for monthly CSV format, duplicate item-month pairs, negative quantities, and missing months.
 - Two easy-to-understand baselines: last observed month and the corresponding month of the previous year.
 - A Random Forest that uses only information available at each forecast origin.
-- An optional LSTM example for comparing a sequence model with simpler approaches.
+- Optional Transformer and LSTM models for testing whether a sequence model helps.
 - Rolling-origin backtests, a **within ±25% hit rate**, WAPE, bias, matched external-forecast comparison, and an optional chart.
 - A configurable Random Forest experiment with a chronological holdout, earlier rolling tuning folds, feature inspection, and a locally saved model.
 
@@ -139,6 +139,17 @@ The second command predicts the month after the last observed month and writes `
 
 To run only simple baselines, add `--models naive,seasonal_naive`. To include the optional LSTM, install the extra dependency and use `--models naive,seasonal_naive,random_forest,lstm --lstm-epochs 15`.
 
+### Try the Transformer
+
+Install the optional TensorFlow dependency in your project environment. In the app, select **Include Transformer** before running a backtest. In the notebook, set `RUN_TRANSFORMER = True`. From the command line, start with a three-origin comparison:
+
+```powershell
+python -m pip install -e ".[transformer]"
+mfg-forecast backtest --data examples/synthetic_rf_demo.csv --origins 3 --models naive,seasonal_naive,random_forest,transformer --transformer-epochs 15
+```
+
+The Transformer uses attention over the most recent 24 known months in the app and CLI. Each fit needs at least 24 labeled windows pooled across items. Keep the baselines in your comparison and judge results on your actual planning horizon. [How the Transformer works](docs/methodology.md#transformer-encoder)
+
 ## 4. Compare an existing forecast fairly
 
 If your sales team or another system saved its forecasts **before actuals were known**, make a separate CSV like this:
@@ -181,6 +192,7 @@ notebooks/monthly_demand_workbench.ipynb  Editable technical experiment
 src/mfg_forecast/workbench.py         Feature selection, time split, tuning, plots
 src/mfg_forecast/prepare.py           Column mapping and gap handling
 src/mfg_forecast/core.py              Baselines, backtesting, metrics
+src/mfg_forecast/transformer.py       Optional attention-based forecaster
 streamlit_app.py                      Guided beginner app
 START_APP.bat                         Windows app launcher
 docs/technical-workbench.md          Notebook and API guide

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -10,6 +11,9 @@ from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder
+
+if TYPE_CHECKING:
+    from .transformer import TransformerConfig
 
 LOOKBACK = 24
 HISTORY_COLUMNS = ["month", "item_id", "quantity"]
@@ -157,12 +161,13 @@ def _predict_lstm(df: pd.DataFrame, origin: pd.Timestamp, horizon: int, items: l
 
 def forecast_at_origin(df: pd.DataFrame, origin: object, horizon: int = 1,
                        models: tuple[str, ...] = ("naive", "seasonal_naive", "random_forest"),
-                       lstm_epochs: int = 15) -> pd.DataFrame:
+                       lstm_epochs: int = 15, *,
+                       transformer_config: TransformerConfig | None = None) -> pd.DataFrame:
     """Fit only on history known at origin and predict origin + horizon months."""
     origin = _month(origin)
     if horizon < 1 or horizon > 12:
         raise ValueError("horizon must be 1 through 12 months")
-    allowed = {"naive", "seasonal_naive", "random_forest", "lstm"}
+    allowed = {"naive", "seasonal_naive", "random_forest", "lstm", "transformer"}
     if not models or set(models) - allowed:
         raise ValueError(f"models must be selected from {sorted(allowed)}")
     available = df[df["month"] <= origin]
@@ -184,6 +189,13 @@ def forecast_at_origin(df: pd.DataFrame, origin: object, horizon: int = 1,
         predictions["random_forest"] = _predict_rf(available, origin, horizon, items)
     if "lstm" in models:
         predictions["lstm"] = _predict_lstm(available, origin, horizon, items, lstm_epochs)
+    if "transformer" in models:
+        from .transformer import TransformerConfig, fit_transformer
+
+        config = transformer_config or TransformerConfig()
+        transformer = fit_transformer(available, through=origin, horizon=horizon, config=config)
+        requests = pd.DataFrame({"origin_month": origin, "item_id": items})
+        predictions["transformer"] = dict(zip(items, transformer.predict(available, requests)))
     target = origin + pd.DateOffset(months=horizon)
     return pd.DataFrame([
         (origin, target, item, model, value)
@@ -193,7 +205,7 @@ def forecast_at_origin(df: pd.DataFrame, origin: object, horizon: int = 1,
 
 def backtest(df: pd.DataFrame, *, horizon: int = 1, origins: int = 6,
              models: tuple[str, ...] = ("naive", "seasonal_naive", "random_forest"),
-             lstm_epochs: int = 15) -> pd.DataFrame:
+             lstm_epochs: int = 15, transformer_config: TransformerConfig | None = None) -> pd.DataFrame:
     """Rolling-origin evaluation; each model sees only data available at that origin."""
     dates = sorted(df["month"].unique())
     if origins < 1 or len(dates) < LOOKBACK + horizon + origins:
@@ -202,7 +214,9 @@ def backtest(df: pd.DataFrame, *, horizon: int = 1, origins: int = 6,
     results = []
     actuals = df.rename(columns={"month": "target_month", "quantity": "actual_qty"})
     for origin in selected:
-        forecast = forecast_at_origin(df, origin, horizon, models, lstm_epochs)
+        forecast = forecast_at_origin(
+            df, origin, horizon, models, lstm_epochs, transformer_config=transformer_config,
+        )
         forecast = forecast.merge(actuals, on=["target_month", "item_id"], how="inner", validate="many_to_one")
         results.append(forecast)
     if not results:

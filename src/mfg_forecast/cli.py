@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from .core import add_benchmark, backtest, evaluate, forecast_at_origin, load_history, make_synthetic_history
+from .transformer import TransformerConfig
 
 
 def _write(frame: pd.DataFrame, path: str) -> None:
@@ -25,7 +26,7 @@ def _models(value: str) -> tuple[str, ...]:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(
         prog="mfg-forecast",
-        description="Transparent monthly demand forecasting with baselines, Random Forest, and optional LSTM.",
+        description="Monthly demand forecasting with baselines, Random Forest, LSTM, and Transformer.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
@@ -43,6 +44,7 @@ def main(argv: list[str] | None = None) -> None:
     test.add_argument("--models", type=_models, default=("naive", "seasonal_naive", "random_forest"))
     test.add_argument("--benchmark", help="Optional independently saved comparison forecasts CSV")
     test.add_argument("--lstm-epochs", type=int, default=15)
+    test.add_argument("--transformer-epochs", type=int, default=TransformerConfig.epochs)
 
     forecast = commands.add_parser("forecast", help="Predict a future month from available history")
     forecast.add_argument("--data", required=True)
@@ -50,6 +52,7 @@ def main(argv: list[str] | None = None) -> None:
     forecast.add_argument("--horizon", type=int, default=1)
     forecast.add_argument("--models", type=_models, default=("naive", "seasonal_naive", "random_forest"))
     forecast.add_argument("--lstm-epochs", type=int, default=15)
+    forecast.add_argument("--transformer-epochs", type=int, default=TransformerConfig.epochs)
     forecast.add_argument("--output", default="outputs/future_forecast.csv")
 
     score = commands.add_parser("evaluate", help="Score an existing CSV with model,forecast_qty,actual_qty")
@@ -68,7 +71,8 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "backtest":
         history = load_history(args.data)
         predictions = backtest(history, horizon=args.horizon, origins=args.origins,
-                               models=args.models, lstm_epochs=args.lstm_epochs)
+                               models=args.models, lstm_epochs=args.lstm_epochs,
+                               transformer_config=TransformerConfig(epochs=args.transformer_epochs))
         if args.benchmark:
             predictions = add_benchmark(predictions, args.benchmark)
         _write(predictions, args.output)
@@ -78,7 +82,10 @@ def main(argv: list[str] | None = None) -> None:
     elif args.command == "forecast":
         history = load_history(args.data)
         origin = args.origin or history["month"].max()
-        predictions = forecast_at_origin(history, origin, args.horizon, args.models, args.lstm_epochs)
+        predictions = forecast_at_origin(
+            history, origin, args.horizon, args.models, args.lstm_epochs,
+            transformer_config=TransformerConfig(epochs=args.transformer_epochs),
+        )
         _write(predictions, args.output)
         print(predictions.to_string(index=False))
     elif args.command == "evaluate":
@@ -97,7 +104,8 @@ def main(argv: list[str] | None = None) -> None:
         for model, group in subset.groupby("model"):
             group = group.sort_values("target_month")
             label = {"naive": "Last month", "seasonal_naive": "Same month last year",
-                     "random_forest": "Random Forest", "external_benchmark": "Saved forecast"}.get(model, model)
+                     "random_forest": "Random Forest", "lstm": "LSTM", "transformer": "Transformer",
+                     "external_benchmark": "Saved forecast"}.get(model, model)
             ax.plot(group["target_month"], group["forecast_qty"], marker=".", label=label)
         ax.set(title=f"Past forecasts for item {args.item}", xlabel="Month forecasted", ylabel="Quantity")
         ax.legend()

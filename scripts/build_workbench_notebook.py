@@ -10,17 +10,19 @@ cells = []
 
 
 def md(source: str) -> None:
-    cells.append(nbf.v4.new_markdown_cell(source.strip()))
+    cells.append(nbf.v4.new_markdown_cell(source.strip(), id=f"workbench-{len(cells) + 1:02d}"))
 
 
 def code(source: str) -> None:
-    cells.append(nbf.v4.new_code_cell(source.strip()))
+    cells.append(nbf.v4.new_code_cell(source.strip(), id=f"workbench-{len(cells) + 1:02d}"))
 
 
 md("""
 # Monthly demand forecasting workbench
 
-This editable notebook walks through **load → clean → select features → time split → tune → train → test → visualize → save**. It starts with fictional demand, then you can change `DATA_PATH` and the column names to use your own local CSV or Excel file. The calculations come from the reusable `mfg_forecast.workbench` module; the notebook is a guided interface to that code.
+Start with **Run All** on the fictional data. The notebook cleans monthly demand, tunes a Random Forest on earlier months, and compares it with two simple forecasts on a later test period. Then change `DATA_PATH` and the column names to use your local CSV or Excel file.
+
+To add the Transformer to the same test, install `python -m pip install -e ".[notebook,transformer]"` from the project root and set `RUN_TRANSFORMER = True` below. The forest and Transformer use the same training cutoff and scored item-month rows.
 
 **Keep confidential files outside this public repository.** The notebook does not upload data. Check your organization's rules before using any business records. Do not claim the fictional demonstration scores as results from your own data.
 """)
@@ -40,7 +42,9 @@ if not (ROOT / "pyproject.toml").exists():
     raise RuntimeError("Start Jupyter from the repository root or notebooks/ folder")
 sys.path.insert(0, str(ROOT / "src"))
 
+from mfg_forecast.core import evaluate
 from mfg_forecast.prepare import prepare_monthly_data
+from mfg_forecast.transformer import TransformerConfig, fit_transformer
 from mfg_forecast.workbench import (
     FeatureConfig, DEFAULT_RF_PARAMS, build_supervised, split_time,
     tune_forest, fit_forest, score_holdout, feature_importance,
@@ -56,6 +60,7 @@ For your own file, change `DATA_PATH` and map its actual column names. Use a dat
 
 code("""
 DATA_PATH = ROOT / "examples" / "synthetic_rf_demo.csv"  # replace with your own local CSV or .xlsx
+# DATA_PATH = ROOT / "examples" / "hf_car_parts_sample.csv"
 DATE_COLUMN = "month"          # set to None if using YEAR_COLUMN + MONTH_COLUMN
 YEAR_COLUMN = None
 MONTH_COLUMN = None
@@ -84,6 +89,10 @@ SEARCH_SPACE = {
     "max_features": [0.7, 1.0],
 }
 FOREST_PARAMS = dict(DEFAULT_RF_PARAMS)  # used when AUTO_TUNE=False
+
+RUN_TRANSFORMER = False        # install the transformer extra before enabling
+TRANSFORMER = TransformerConfig(epochs=15, width=32, heads=4)
+PLOT_ITEM = None               # None picks the first scored item, or set an ID like "DEMO-04"
 """)
 
 md("""
@@ -177,36 +186,58 @@ model = fit_forest(split.train, FEATURES, best_params)
 """)
 
 md("""
-## 5 · Test once against two baselines
+## 5 · Compare models on the same test rows
 
-The model and the simple references predict exactly the same held-out item-month rows. A ±25% hit means absolute error is at most one-quarter of actual quantity. WAPE is total absolute error divided by total actual quantity. Compare both measures; a forest can lose to a simple baseline on harder data.
+The optional Transformer reads the same number of past months as the forest's lookback. Each month carries scaled demand, its place in the window, and its month-of-year encoding. Self-attention lets the final month draw information from the entire known window. Both fitted models stop training at the first test origin. At later origins the input window moves forward as new actuals become known, while the weights stay fixed.
+
+A ±25% hit means absolute error is at most one-quarter of actual quantity. WAPE divides total absolute error by total actual quantity. Report both scores and the number of forecasts. Choose Transformer settings before looking at the held-out scores.
 """)
 
 code("""
 predictions, metrics = score_holdout(model, split.test, FEATURES)
-display(metrics.sort_values("wape"))
+if RUN_TRANSFORMER:
+    attention_model = fit_transformer(
+        monthly, through=split.first_test_origin, horizon=HORIZON,
+        lookback=FEATURES.lookback, config=TRANSFORMER,
+    )
+    transformer_test = split.test[["origin_month", "target_month", "item_id", "actual_qty"]].copy()
+    transformer_test["model"] = "transformer"
+    transformer_test["forecast_qty"] = attention_model.predict(monthly, transformer_test)
+    predictions = pd.concat([predictions, transformer_test], ignore_index=True)
+    metrics = evaluate(predictions)
+
+test_keys = ["origin_month", "target_month", "item_id"]
+assert not predictions.duplicated([*test_keys, "model"]).any()
+assert predictions.groupby(test_keys)["model"].nunique().eq(metrics["model"].nunique()).all()
+display(metrics.sort_values("wape").style.format(
+    {"hit_rate_25": "{:.1%}", "wape": "{:.1%}", "bias_ratio": "{:+.1%}"}, na_rep="n/a"
+))
 display(predictions.head(10))
 """)
 
 md("""
 ## 6 · Visualize errors and feature importance
 
-The third panel shows tree impurity importance. Correlated inputs can split credit, so treat it as a description of this fitted forest, not a causal explanation or proof that a feature will help future forecasts.
+Set `PLOT_ITEM` to inspect another item. Compare its score and chart with the pooled results above. Feature importance describes the fitted forest. Correlated inputs can split credit, and that chart cannot establish cause and effect.
 """)
 
 code("""
 importance = feature_importance(model)
-item_to_plot = str(split.test["item_id"].iloc[0])
+item_to_plot = str(PLOT_ITEM) if PLOT_ITEM is not None else str(split.test["item_id"].iloc[0])
+item_rows = predictions[predictions["item_id"] == item_to_plot]
 figure = plot_diagnostics(predictions, metrics, importance, item_id=item_to_plot)
 display(figure)
 plt.close(figure)
+display(evaluate(item_rows).style.format(
+    {"hit_rate_25": "{:.1%}", "wape": "{:.1%}", "bias_ratio": "{:+.1%}"}, na_rep="n/a"
+))
 display(importance.head(15))
 """)
 
 md("""
 ## 7 · Refit for a future forecast and save local artifacts
 
-After reporting the untouched test score, fit the chosen configuration on all observed labeled rows. This final model predicts after the latest observed month. The `.joblib` file is for **trusted local use** with compatible package versions; never load model files from unknown sources. Files are written into Git-ignored `outputs/`.
+After recording the untouched test scores, refit on all observed labeled rows and predict the selected future month. If enabled, the Transformer also produces its own forecast CSV. Only load the saved forest `.joblib` file from trusted sources. Files are written into Git-ignored `outputs/`.
 """)
 
 code("""
@@ -220,6 +251,16 @@ monthly.to_csv(output_dir / "workbench_cleaned_monthly.csv", index=False)
 predictions.to_csv(output_dir / "workbench_test_predictions.csv", index=False)
 metrics.to_csv(output_dir / "workbench_test_metrics.csv", index=False)
 future.to_csv(output_dir / "workbench_future_forecast.csv", index=False)
+if RUN_TRANSFORMER:
+    final_attention_model = fit_transformer(
+        monthly, through=monthly["month"].max(), horizon=HORIZON,
+        lookback=FEATURES.lookback, config=TRANSFORMER,
+    )
+    transformer_future = future[["origin_month", "target_month", "item_id"]].copy()
+    transformer_future["forecast_qty"] = final_attention_model.predict(monthly, transformer_future)
+    transformer_future.to_csv(output_dir / "workbench_transformer_forecast.csv", index=False)
+    display(transformer_future)
+
 model_path = save_forecaster(
     output_dir / "workbench_model.joblib", final_model, FEATURES,
     HORIZON, monthly["month"].max(),

@@ -22,6 +22,7 @@ dependencies = [
 app = ["streamlit>=1.40,<2", "openpyxl>=3.1,<4"]
 notebook = ["jupyterlab>=4,<5", "ipykernel>=6,<8", "nbformat>=5,<6", "openpyxl>=3.1,<4"]
 lstm = ["tensorflow>=2.16,<3"]
+transformer = ["tensorflow>=2.16,<3"]
 test = ["pytest>=8,<10"]
 
 [project.scripts]

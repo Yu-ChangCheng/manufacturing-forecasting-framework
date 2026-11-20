@@ -21,6 +21,12 @@ $$
 
 The clip reflects a quantity that cannot be negative. The model receives no future actual quantity as a feature. The optional LSTM takes a 24-month sequence scaled by that window's mean and predicts a target-to-mean ratio for the chosen horizon; it is included as an experiment, not as the default recommendation.
 
+## Transformer encoder
+
+Each input month contributes four features: demand divided by the known window's mean (floored at 1), sine and cosine of the calendar month, and relative position in the window. The app and CLI use 24 months. The technical notebook uses the lookback selected for the forest so both models can score the same rows. A shared encoder learns across items from one training example per historical window.
+
+A projection feeds one multi-head self-attention block with residual connections, normalization, and a feed-forward layer. The last encoded token reads from the full known window. It predicts the target quantity divided by the input scale, using mean squared error on this ratio during training. The forecast restores the original scale and floors the result at zero. The model fits one horizon at a time, and every training target must already be observed at the cutoff. [Vaswani et al. (2017)](references.md#transformer)
+
 ## Baselines
 
 The **last-month** baseline repeats $y_{i,o}$. For horizons up to 12 months, the **same-month-last-year** baseline uses $y_{i,o+h-12}$. These are forecasts available at origin $o$. A complex model is useful only if it improves a relevant out-of-sample comparison with such baselines.
